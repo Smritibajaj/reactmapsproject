@@ -5,8 +5,9 @@ import Autocomplete from 'react-google-autocomplete';
 class Map extends React.Component {
     constructor(props) {
         super(props)
+        this.getDirections = this.getDirections.bind(this);
         this.state = {
-            direction: null,
+            directions: null,
             mapPosition: {
                 lat: this.props.center.lat,
                 lng: this.props.center.lng
@@ -18,9 +19,32 @@ class Map extends React.Component {
             dropLocation: {
                 lat: this.props.center.lat,
                 lng: this.props.center.lng
-            }
+            },
+            pickUpLocationName: 'india'
         }
     }
+    _geoCodeCallback = (results, status, event) => {
+        const google = window.google; // eslint-disable-line
+       if (status === google.maps.GeocoderStatus.OK) {
+        if (results[0]) {
+          const add = results[0].formatted_address;
+          console.log(add);
+          return this.state.pickUpLocationName!==add ? this.setState({pickUpLocationName:add}) : this.state.pickUpLocationName;
+          // here we can dispatch action to search by city name and autofill the autocomplete
+        } else {
+          console.log("address not found");
+        }
+        } else {
+          console.log(status);
+        }
+      }
+
+    _geocodeAddress = () => {
+    const google = window.google; // eslint-disable-line
+    const geocoder = new google.maps.Geocoder();
+    const latlng = new google.maps.LatLng(this.state.pickUpLocation.lat, this.state.pickUpLocation.lng);
+    geocoder.geocode({ location: this.state.mapPosition }, this._geoCodeCallback);
+ }
 
     onInfoWindowClose = (event) => {
     };
@@ -84,12 +108,35 @@ class Map extends React.Component {
         })
     };
 
+    setDirections(directions) {
+        this.setState({directions})
+    }
+
+    getDirections() {
+        let google = window.google;
+    
+        const DirectionsService = new google.maps.DirectionsService();
+        console.log('iam here')
+        DirectionsService.route({
+          origin: this.state.pickUpLocation,
+          destination: this.state.dropLocation,
+          travelMode: google.maps.TravelMode.DRIVING,
+        }, (result, status) => {
+          if (status === google.maps.DirectionsStatus.OK) {
+            this.setDirections(result);
+          } else {
+            console.error(`error fetching directions ${result}`);
+          }
+        });
+      }
+
     render() {
         const AsyncMap = withScriptjs(
             withGoogleMap(
                 props => (
+                    <>
                     <GoogleMap google={window.google}
-                        defaultZoom={6}
+                        defaultZoom={12}
                         defaultCenter={{ lat: this.state.mapPosition.lat, lng: this.state.mapPosition.lng }}
                     >
                         {/* For Auto complete Search Box */}
@@ -99,18 +146,21 @@ class Map extends React.Component {
                                 height: '40px',
                                 paddingLeft: '16px',
                                 marginTop: '2px',
-                                marginBottom: '100px'
+                                marginBottom: '10px'
                             }}
                             onPlaceSelected={this.onPickUpLocation}
                             types={['(regions)']}
+                            value={this.state.pickUpLocationName}
+                            onChange={this._geocodeAddress()}
                         />
                         <Autocomplete
+                            autoFocus
                             style={{
                                 width: '100%',
                                 height: '40px',
                                 paddingLeft: '16px',
                                 marginTop: '2px',
-                                marginBottom: '100px'
+                                marginBottom: '10px'
                             }}
                             onPlaceSelected={this.onDropLocation}
                             types={['(regions)']}
@@ -146,9 +196,11 @@ class Map extends React.Component {
                                 <span style={{ padding: 0, margin: 0 }}>{this.state.address}</span>
                             </div>
                         </InfoWindow>
-
+                         <DirectionsRenderer directions={this.state.directions} />
 
                     </GoogleMap>
+                    <button onClick={this.getDirections} > Get Directions </button>
+                    </>
 
                 )
             )
@@ -157,7 +209,7 @@ class Map extends React.Component {
         if (this.props.center.lat !== undefined) {
             map = <div>
                 <AsyncMap
-                    googleMapURL="https://maps.googleapis.com/maps/api/js?key=AIzaSyBnbUh1crm71pJfxpuC3z_9ViBH3A1zu3c&v=3.exp&libraries=geometry,drawing,places&sensor=false"
+                    googleMapURL="https://maps.googleapis.com/maps/api/js?key=AIzaSyD_AZqRShVfhj4LQrCjwRTt1ZBQXIlGjGc&v=3.exp&libraries=geometry,drawing,places&sensor=false"
                     loadingElement={
                         <div style={{ height: `100%` }} />
                     }
