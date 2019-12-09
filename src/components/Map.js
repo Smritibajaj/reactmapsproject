@@ -1,143 +1,37 @@
 import React from 'react';
-import { withGoogleMap, GoogleMap, withScriptjs, InfoWindow, Marker, Polyline, DirectionsRenderer } from "react-google-maps";
+import { withGoogleMap, GoogleMap, withScriptjs, Marker, DirectionsRenderer } from "react-google-maps";
+import { connect } from 'react-redux';
 import Autocomplete from 'react-google-autocomplete';
+import { receiveDirections  } from '../actions';
 
 class Map extends React.Component {
     constructor(props) {
-        super(props)
-        this.getDirections = this.getDirections.bind(this);
-        this.state = {
-            directions: null,
-            mapPosition: {
-                lat: this.props.center.lat,
-                lng: this.props.center.lng
-            },
-            pickUpLocation: {
-                lat: this.props.center.lat,
-                lng: this.props.center.lng
-            },
-            dropLocation: {
-                lat: this.props.center.lat,
-                lng: this.props.center.lng
-            },
-            pickUpLocationName: 'india'
-        }
+        super(props);
+        this.getDirections=this.getDirections.bind(this);
     }
-    _geoCodeCallback = (results, status, event) => {
-        const google = window.google; // eslint-disable-line
-       if (status === google.maps.GeocoderStatus.OK) {
-        if (results[0]) {
-          const add = results[0].formatted_address;
-          console.log(add);
-          return this.state.pickUpLocationName!==add ? this.setState({pickUpLocationName:add}) : this.state.pickUpLocationName;
-          // here we can dispatch action to search by city name and autofill the autocomplete
-        } else {
-          console.log("address not found");
-        }
-        } else {
-          console.log(status);
-        }
-      }
-
-    _geocodeAddress = () => {
-    const google = window.google; // eslint-disable-line
-    const geocoder = new google.maps.Geocoder();
-    const latlng = new google.maps.LatLng(this.state.pickUpLocation.lat, this.state.pickUpLocation.lng);
-    geocoder.geocode({ location: this.state.mapPosition }, this._geoCodeCallback);
- }
-
-    onInfoWindowClose = (event) => {
-    };
-
-    onChange = (event) => {
-        this.setState({ [event.target.name]: event.target.value });
-    };
-
-    onMarkerDragEndForPickup = (event) => {
-        console.log('event', event);
-        let newLat = event.latLng.lat(),
-            newLng = event.latLng.lng();
-        this.setState({
-            ...this.state,
-            pickUpLocation: {
-                lat: parseFloat(newLat),
-                lng: parseFloat(newLng)
-            },
-        })
-    }
-
-    onMarkerDragEndForDrop = (event) => {
-        console.log('event', event);
-        let newLat = event.latLng.lat(),
-            newLng = event.latLng.lng();
-        this.setState({
-            ...this.state,
-            dropLocation: {
-                lat: parseFloat(newLat),
-                lng: parseFloat(newLng)
-            },
-        })
-    }
-
-
-    onPickUpLocation = (place) => {
-        console.log(place);
-        const latValue = place.geometry.location.lat(),
-            lngValue = place.geometry.location.lng();
-        // Set these values in the state.
-        this.setState({
-            ...this.state,
-            pickUpLocation: {
-                lat: parseFloat(latValue),
-                lng: parseFloat(lngValue)
-            },
-        })
-    };
-
-    onDropLocation = (place) => {
-        console.log(place);
-        const latValue = place.geometry.location.lat(),
-            lngValue = place.geometry.location.lng();
-        // Set these values in the state.
-        this.setState({
-            ...this.state,
-            dropLocation: {
-                lat: parseFloat(latValue),
-                lng: parseFloat(lngValue)
-            },
-        })
-    };
-
-    setDirections(directions) {
-        this.setState({directions})
-    }
-
     getDirections() {
         let google = window.google;
-    
         const DirectionsService = new google.maps.DirectionsService();
-        console.log('iam here')
         DirectionsService.route({
-          origin: this.state.pickUpLocation,
-          destination: this.state.dropLocation,
+          origin: this.props.clientLocation,
+          destination: this.props.dropLocation,
           travelMode: google.maps.TravelMode.DRIVING,
         }, (result, status) => {
           if (status === google.maps.DirectionsStatus.OK) {
-            this.setDirections(result);
+            this.props.setDirections(result);
           } else {
             console.error(`error fetching directions ${result}`);
           }
         });
-      }
-
+    }
     render() {
         const AsyncMap = withScriptjs(
             withGoogleMap(
                 props => (
                     <>
                     <GoogleMap google={window.google}
-                        defaultZoom={12}
-                        defaultCenter={{ lat: this.state.mapPosition.lat, lng: this.state.mapPosition.lng }}
+                        defaultZoom={this.props.zoom}
+                        defaultCenter={this.props.clientLocation}
                     >
                         {/* For Auto complete Search Box */}
                         <Autocomplete
@@ -148,10 +42,10 @@ class Map extends React.Component {
                                 marginTop: '2px',
                                 marginBottom: '10px'
                             }}
-                            onPlaceSelected={this.onPickUpLocation}
+                            onPlaceSelected={this.props.updatePickUp}
                             types={['(regions)']}
-                            value={this.state.pickUpLocationName}
-                            onChange={this._geocodeAddress()}
+                            value={this.props.geocodeAddress()}
+                            onChange={this.props.geocodeAddress()}
                         />
                         <Autocomplete
                             autoFocus
@@ -162,44 +56,26 @@ class Map extends React.Component {
                                 marginTop: '2px',
                                 marginBottom: '10px'
                             }}
-                            onPlaceSelected={this.onDropLocation}
+                            onPlaceSelected={this.props.updateDrop}
                             types={['(regions)']}
                         />
                         <Marker google={window.google}
-                            name={'Dolores park'}
+                            name={'A'}
                             draggable={true}
-                            onDragEnd={this.onMarkerDragEndForPickup}
-                            position={{ lat: this.state.pickUpLocation.lat, lng: this.state.pickUpLocation.lng }}
+                            onDragEnd={this.props.updatePickupMark}
+                            position={this.props.clientLocation}
                         />
-                        <Marker />
                         <Marker google={window.google}
-                            name={'Dolores park'}
-                            draggable={true}
-                            onDragEnd={this.onMarkerDragEndForDrop}
-                            position={{ lat: this.state.dropLocation.lat, lng: this.state.dropLocation.lng }}
+                        name={'b'}
+                        draggable={true}
+                        onDragEnd={this.props.updateDropMark}
+                        position={this.props.dropLocation}
                         />
-                        <Marker />
-                        {/* InfoWindow on top of marker */}
-                        <InfoWindow
-                            onClose={this.onInfoWindowClose}
-                            position={{ lat: (this.state.pickUpLocation.lat + 0.0018), lng: this.state.pickUpLocation.lng }}
-                        >
-                            <div>
-                                <span style={{ padding: 0, margin: 0 }}>{this.state.address}</span>
-                            </div>
-                        </InfoWindow>
-                        <InfoWindow
-                            onClose={this.onInfoWindowClose}
-                            position={{ lat: (this.state.dropLocation.lat + 0.0018), lng: this.state.dropLocation.lng }}
-                        >
-                            <div>
-                                <span style={{ padding: 0, margin: 0 }}>{this.state.address}</span>
-                            </div>
-                        </InfoWindow>
-                         <DirectionsRenderer directions={this.state.directions} />
+
+                        {this.props.directions && <DirectionsRenderer directions={this.props.directions} />}
 
                     </GoogleMap>
-                    <button onClick={this.getDirections} > Get Directions </button>
+                    <button onClick={this.getDirections()} > Get Directions </button>
                     </>
 
                 )
@@ -229,4 +105,17 @@ class Map extends React.Component {
     }
 }
 
-export default Map;
+
+
+const mapStateToProps = state => ({
+    directions: state.maps.directions
+});
+const mapDispatchToProps= (dispatch) => {
+    return {
+        setDirections(directions) {
+            dispatch(receiveDirections(directions));
+        }
+    }
+}
+
+export default  connect(mapStateToProps, mapDispatchToProps)(Map);
